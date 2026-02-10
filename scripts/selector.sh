@@ -62,7 +62,7 @@ ALL_SERVICES=("${EDGE_SERVICES[@]}" "${GENAI_SERVICES[@]}")
 # Get container status for a service
 get_status() {
     local service="$1"
-    local container_name="ming-${service}"
+    local container_name="p4n4-${service}"
     local status
     status=$(docker inspect --format='{{.State.Status}}' "$container_name" 2>/dev/null || echo "not found")
     echo "$status"

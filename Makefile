@@ -113,7 +113,7 @@ status:
 	@printf "  $(BOLD)%-14s %-12s %-8s %-12s %s$(NC)\n" "SERVICE" "STATUS" "PORT" "LAYER" "URL"
 	@printf "  $(DIM)%-14s %-12s %-8s %-12s %s$(NC)\n" "─────────────" "──────────" "──────" "──────────" "───────────────────────────"
 	@for svc in mqtt influxdb node-red grafana n8n ollama letta kokoro; do \
-		container="ming-$$svc"; \
+		container="p4n4-$$svc"; \
 		state=$$(docker inspect --format='{{.State.Status}}' $$container 2>/dev/null || echo "stopped"); \
 		case $$svc in \
 			mqtt)      port="1883"; layer="Edge AI"; url="-" ;; \
@@ -188,7 +188,7 @@ endif
 	@rdeps="$(rdeps_$(SERVICE))"; \
 	if [ -n "$$rdeps" ]; then \
 		for dep in $$rdeps; do \
-			state=$$(docker inspect --format='{{.State.Status}}' "ming-$$dep" 2>/dev/null || echo "stopped"); \
+			state=$$(docker inspect --format='{{.State.Status}}' "p4n4-$$dep" 2>/dev/null || echo "stopped"); \
 			if [ "$$state" = "running" ]; then \
 				printf "$(RED)  WARNING: Stopping '$(SERVICE)' will affect running service: $(BOLD)$$dep$(NC)\n"; \
 			fi; \
@@ -227,24 +227,24 @@ ollama-list:
 
 test-mqtt:
 	@echo "Publishing test sensor data to MQTT..."
-	docker run --rm --network ming-network eclipse-mosquitto:2 \
+	docker run --rm --network p4n4-network eclipse-mosquitto:2 \
 		mosquitto_pub -h mqtt -t 'sensors/temperature' \
 		-m '{"value": 23.5, "unit": "C", "device": "test-sensor"}'
 	@echo "Publishing test inference result..."
-	docker run --rm --network ming-network eclipse-mosquitto:2 \
+	docker run --rm --network p4n4-network eclipse-mosquitto:2 \
 		mosquitto_pub -h mqtt -t 'inference/results' \
 		-m '{"model": "test", "label": "idle", "confidence": 0.95, "latency": 25.3}'
 	@echo "Done! Check Node-RED debug panel."
 
 test-sandbox:
 	@printf "$(CYAN)  Publishing test data to sandbox bucket...$(NC)\n"
-	@docker run --rm --network ming-network eclipse-mosquitto:2 \
+	@docker run --rm --network p4n4-network eclipse-mosquitto:2 \
 		mosquitto_pub -h mqtt -t 'sandbox/sensors/temperature' \
 		-m '{"value": 22.1, "unit": "C", "device": "sandbox-sensor-1", "sandbox": true}'
-	@docker run --rm --network ming-network eclipse-mosquitto:2 \
+	@docker run --rm --network p4n4-network eclipse-mosquitto:2 \
 		mosquitto_pub -h mqtt -t 'sandbox/sensors/humidity' \
 		-m '{"value": 65.3, "unit": "%", "device": "sandbox-sensor-1", "sandbox": true}'
-	@docker run --rm --network ming-network eclipse-mosquitto:2 \
+	@docker run --rm --network p4n4-network eclipse-mosquitto:2 \
 		mosquitto_pub -h mqtt -t 'sandbox/inference/results' \
 		-m '{"model": "sandbox-test", "label": "anomaly", "confidence": 0.87, "latency": 18.5, "sandbox": true}'
 	@printf "$(GREEN)  Sandbox test data published!$(NC)\n"
@@ -257,10 +257,10 @@ test-sandbox:
 
 build:
 	@echo "Building Edge Impulse runner image..."
-	docker build -t ming-edge-impulse .
+	docker build -t p4n4-edge-impulse .
 
 run-inference:
 	@echo "Running Edge Impulse inference (demo mode)..."
-	docker run --rm -it --network ming-network \
-		-e MQTT_BROKER=ming-mqtt \
-		ming-edge-impulse
+	docker run --rm -it --network p4n4-network \
+		-e MQTT_BROKER=p4n4-mqtt \
+		p4n4-edge-impulse

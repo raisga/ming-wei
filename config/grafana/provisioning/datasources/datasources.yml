@@ -16,7 +16,7 @@ datasources:
       defaultBucket: iot
       tlsSkipVerify: true
     secureJsonData:
-      token: ming-stack-token
+      token: p4n4-stack-token
     isDefault: true
     editable: true
 
@@ -31,6 +31,6 @@ datasources:
       defaultBucket: sandbox
       tlsSkipVerify: true
     secureJsonData:
-      token: ming-stack-token
+      token: p4n4-stack-token
     isDefault: false
     editable: true

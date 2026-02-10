@@ -5,13 +5,13 @@
 # devices. It can be used standalone or as a sidecar to the MING stack.
 #
 # Build:
-#   docker build -t ming-edge-impulse .
+#   docker build -t p4n4-edge-impulse .
 #
 # Run:
 #   docker run --rm -it \
 #     --device /dev/video0 \
 #     -e EI_API_KEY=your-api-key \
-#     ming-edge-impulse
+#     p4n4-edge-impulse
 # ==============================================================================
 
 FROM python:3.11-slim

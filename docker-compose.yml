@@ -9,7 +9,7 @@ services:
   # ------------------------------------------------------------------------------------
   mqtt:
     image: eclipse-mosquitto:2
-    container_name: ming-mqtt
+    container_name: p4n4-mqtt
     restart: unless-stopped
     ports:
       - "1883:1883"
@@ -25,14 +25,14 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - ming-network
+      - p4n4-network
 
   # ------------------------------------------------------------------------------------
   # Time-Series Database (InfluxDB)
   # ------------------------------------------------------------------------------------
   influxdb:
     image: influxdb:2
-    container_name: ming-influxdb
+    container_name: p4n4-influxdb
     restart: unless-stopped
     ports:
       - "8086:8086"
@@ -42,7 +42,7 @@ services:
       DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-adminpassword}
       DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-ming}
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-iot}
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-ming-stack-token}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-p4n4-stack-token}
       INFLUXDB_SANDBOX_BUCKET: ${INFLUXDB_SANDBOX_BUCKET:-sandbox}
     volumes:
       - influxdb-data:/var/lib/influxdb2
@@ -55,20 +55,20 @@ services:
       retries: 5
       start_period: 60s
     networks:
-      - ming-network
+      - p4n4-network
 
   # ------------------------------------------------------------------------------------
   # Workflow Engine (Node-RED)
   # ------------------------------------------------------------------------------------
   node-red:
     image: nodered/node-red:latest
-    container_name: ming-node-red
+    container_name: p4n4-node-red
     restart: unless-stopped
     ports:
       - "1880:1880"
     environment:
       TZ: ${TZ:-UTC}
-      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN:-ming-stack-token}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN:-p4n4-stack-token}
       INFLUXDB_ORG: ${INFLUXDB_ORG:-ming}
     volumes:
       - node-red-data:/data
@@ -86,14 +86,14 @@ services:
       retries: 3
       start_period: 20s
     networks:
-      - ming-network
+      - p4n4-network
 
   # ------------------------------------------------------------------------------------
   # Data Visualization (Grafana)
   # ------------------------------------------------------------------------------------
   grafana:
     image: grafana/grafana:latest
-    container_name: ming-grafana
+    container_name: p4n4-grafana
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -114,7 +114,7 @@ services:
       retries: 3
       start_period: 20s
     networks:
-      - ming-network
+      - p4n4-network
 
   # ====================================================================================
   # GEN AI LAYER
@@ -125,7 +125,7 @@ services:
   # ------------------------------------------------------------------------------------
   n8n:
     image: n8nio/n8n:latest
-    container_name: ming-n8n
+    container_name: p4n4-n8n
     restart: unless-stopped
     ports:
       - "5678:5678"
@@ -152,14 +152,14 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - ming-network
+      - p4n4-network
 
   # ------------------------------------------------------------------------------------
   # AI Agent Framework (Letta)
   # ------------------------------------------------------------------------------------
   letta:
     image: letta/letta:latest
-    container_name: ming-letta
+    container_name: p4n4-letta
     restart: unless-stopped
     ports:
       - "8283:8283"
@@ -180,14 +180,14 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - ming-network
+      - p4n4-network
 
   # ------------------------------------------------------------------------------------
   # Local LLM Runtime (Ollama)
   # ------------------------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
-    container_name: ming-ollama
+    container_name: p4n4-ollama
     restart: unless-stopped
     ports:
       - "11434:11434"
@@ -202,7 +202,7 @@ services:
       retries: 3
       start_period: 15s
     networks:
-      - ming-network
+      - p4n4-network
     # Uncomment for NVIDIA GPU support:
     # deploy:
     #   resources:
@@ -217,7 +217,7 @@ services:
   # ------------------------------------------------------------------------------------
   kokoro:
     image: ghcr.io/remsky/kokoro-fastapi:latest
-    container_name: ming-kokoro
+    container_name: p4n4-kokoro
     restart: unless-stopped
     ports:
       - "8880:8880"
@@ -233,14 +233,14 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - ming-network
+      - p4n4-network
 
 # ====================================================================================
 # NETWORKS
 # ====================================================================================
 networks:
-  ming-network:
-    name: ming-network
+  p4n4-network:
+    name: p4n4-network
     driver: bridge
 
 # ====================================================================================

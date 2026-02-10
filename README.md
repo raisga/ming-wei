@@ -1,4 +1,4 @@
-# ming-wei
+# p4n4-docker
 
 > Dockerized **MING stack** (with Edge Impulse) and Gen AI services support, bootstraping development environment for IoT and Edge AI engineers.
 
@@ -35,7 +35,7 @@ The MING stack (MQTT, InfluxDB, Node-RED, Grafana) is a proven open-source found
                            │           │               │                       
                            ▼           │               │                       
                          ┌───────────────────────────────┐                     
-    [Cloud Services] ◀► │          Gen AI Layer         │                      
+  [Loc/Cld Services] ─── │          Gen AI Layer         │                      
                          └───────────────────────────────┘                     
                                   [n8n]                                        
                                  /     \                                       
@@ -87,8 +87,8 @@ The MING stack (MQTT, InfluxDB, Node-RED, Grafana) is a proven open-source found
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/raisga/ming-wei.git
-   cd ming-wei
+   git clone https://github.com/raisga/p4n4-docker.git
+   cd p4n4-docker
    ```
 
 2. **Configure environment variables**
@@ -129,7 +129,7 @@ The MING stack (MQTT, InfluxDB, Node-RED, Grafana) is a proven open-source found
 ## Project Structure
 
 ```
-ming-wei/
+p4n4-docker/
 ├── docker-compose.yml          # Main orchestration file for all services
 ├── Dockerfile                  # Edge Impulse inference runner image
 ├── Makefile                    # Convenience commands (make up, make down, etc.)
@@ -203,12 +203,12 @@ make run-inference
 For real inference with a trained model:
 
 ```bash
-docker run --rm -it --network ming-network \
+docker run --rm -it --network p4n4-network \
   --device /dev/video0 \
   -v /path/to/model.eim:/app/model/model.eim \
   -e EI_MODEL_PATH=/app/model/model.eim \
-  -e MQTT_BROKER=ming-mqtt \
-  ming-edge-impulse
+  -e MQTT_BROKER=p4n4-mqtt \
+  p4n4-edge-impulse
 ```
 
 ### GPU Support for Ollama
@@ -260,8 +260,8 @@ All credentials can be customized in `.env`. Defaults (from `.env.example`):
 
 ## Resources
 
-- [MING Stack Tutorial](https://github.com/ArthurKretzer/tutorial-ming-stack) -- IIoT data stack tutorial presented at XIV SBESC (2024) with Docker Compose setup, Node-RED flows, and Grafana dashboards
-- [MING Stack with Edge Impulse](https://www.edgeimpulse.com/blog/accelerate-edge-ai-application-development-with-the-ming-stack-edge-impulse/) -- Tech stack architecture and integration guide
+- [MING Stack Tutorial](https://github.com/ArthurKretzer/tutorial-p4n4-stack) -- IIoT data stack tutorial presented at XIV SBESC (2024) with Docker Compose setup, Node-RED flows, and Grafana dashboards
+- [MING Stack with Edge Impulse](https://www.edgeimpulse.com/blog/accelerate-edge-ai-application-development-with-the-p4n4-stack-edge-impulse/) -- Tech stack architecture and integration guide
 - [Edge Impulse Linux SDK (Python)](https://github.com/edgeimpulse/linux-sdk-python) -- Python SDK for on-device inference
 - [Eclipse Mosquitto](https://mosquitto.org/) -- MQTT broker documentation
 - [InfluxDB Documentation](https://docs.influxdata.com/) -- Time-series database docs

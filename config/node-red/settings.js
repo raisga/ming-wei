@@ -34,7 +34,7 @@ module.exports = {
         menu: {
             "menu-item-help": {
                 label: "MING Stack Documentation",
-                url: "https://github.com/raisga/ming-wei"
+                url: "https://github.com/raisga/p4n4-docker"
             }
         }
     },
