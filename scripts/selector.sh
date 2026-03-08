@@ -14,50 +14,28 @@ trap 'echo -e "\n${DIM:-}  Cancelled.${NC:-}"; exit 0' INT TERM
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
-# Service definitions: name|layer|dependencies (comma-separated)
-declare -A SERVICE_LAYER=(
-    [mqtt]="Edge AI"
-    [influxdb]="Edge AI"
-    [node-red]="Edge AI"
-    [grafana]="Edge AI"
-    [n8n]="Gen AI"
-    [ollama]="Gen AI"
-    [letta]="Gen AI"
-    [kokoro]="Gen AI"
-)
-
+# Service definitions
 declare -A SERVICE_DEPS=(
     [mqtt]=""
     [influxdb]=""
     [node-red]="mqtt,influxdb"
     [grafana]="influxdb"
-    [n8n]="mqtt,ollama"
-    [ollama]=""
-    [letta]="ollama"
-    [kokoro]=""
 )
 
 # Reverse dependency map: what breaks if you stop X
 declare -A SERVICE_DEPENDENTS=(
-    [mqtt]="node-red,n8n"
+    [mqtt]="node-red"
     [influxdb]="node-red,grafana"
-    [ollama]="n8n,letta"
     [node-red]=""
     [grafana]=""
-    [n8n]=""
-    [letta]=""
-    [kokoro]=""
 )
 
-EDGE_SERVICES=(mqtt influxdb node-red grafana)
-GENAI_SERVICES=(n8n ollama letta kokoro)
-ALL_SERVICES=("${EDGE_SERVICES[@]}" "${GENAI_SERVICES[@]}")
+ALL_SERVICES=(mqtt influxdb node-red grafana)
 
 # Get container status for a service
 get_status() {
@@ -76,26 +54,21 @@ get_port() {
         influxdb)  echo "8086" ;;
         node-red)  echo "1880" ;;
         grafana)   echo "3000" ;;
-        n8n)       echo "5678" ;;
-        ollama)    echo "11434" ;;
-        letta)     echo "8283" ;;
-        kokoro)    echo "8880" ;;
     esac
 }
 
 # Print status table
 print_status() {
     echo ""
-    printf "${BOLD}  %-12s %-10s %-12s %-14s %s${NC}\n" "SERVICE" "STATUS" "PORTS" "LAYER" "DEPENDS ON"
-    printf "  ${DIM}%-12s %-10s %-12s %-14s %s${NC}\n" "───────────" "────────" "──────────" "────────────" "──────────"
+    printf "${BOLD}  %-12s %-10s %-12s %s${NC}\n" "SERVICE" "STATUS" "PORTS" "DEPENDS ON"
+    printf "  ${DIM}%-12s %-10s %-12s %s${NC}\n" "───────────" "────────" "──────────" "──────────"
 
     for service in "${ALL_SERVICES[@]}"; do
         local status
         status=$(get_status "$service")
         local port
         port=$(get_port "$service")
-        local layer="${SERVICE_LAYER[$service]}"
-        local deps="${SERVICE_DEPS[$service]:-none}"
+        local deps="${SERVICE_DEPS[$service]:-}"
         [ -z "$deps" ] && deps="-"
 
         local status_color
@@ -105,15 +78,8 @@ print_status() {
             *)         status_color="${DIM}$status${NC}" ;;
         esac
 
-        local layer_color
-        if [ "$layer" = "Edge AI" ]; then
-            layer_color="${CYAN}$layer${NC}"
-        else
-            layer_color="${YELLOW}$layer${NC}"
-        fi
-
-        printf "  ${BOLD}%-12s${NC} %-19s %-12s %-23s %s\n" \
-            "$service" "$status_color" "$port" "$layer_color" "$deps"
+        printf "  ${BOLD}%-12s${NC} %-19s %-12s %s\n" \
+            "$service" "$status_color" "$port" "$deps"
     done
     echo ""
 }
@@ -127,11 +93,9 @@ resolve_deps() {
     while $changed; do
         changed=false
         for service in "${selected[@]}"; do
-            # Add the service itself
             if [[ ! " ${resolved[*]} " =~ " $service " ]]; then
                 resolved+=("$service")
             fi
-            # Add its dependencies
             local deps="${SERVICE_DEPS[$service]}"
             if [ -n "$deps" ]; then
                 IFS=',' read -ra dep_array <<< "$deps"
@@ -175,14 +139,12 @@ select_with_gum() {
     printf "${BOLD}${CYAN}  MING Stack - Interactive Service Selector${NC}\n"
     print_status
 
-    # Build options with status indicators
     local options=()
     local preselected=()
 
     for service in "${ALL_SERVICES[@]}"; do
         local status
         status=$(get_status "$service")
-        local layer="${SERVICE_LAYER[$service]}"
         local deps="${SERVICE_DEPS[$service]}"
         local label="$service"
 
@@ -200,14 +162,14 @@ select_with_gum() {
     local selected
     if [ ${#preselected[@]} -gt 0 ]; then
         selected=$(gum choose --no-limit \
-            --header="  Edge AI: mqtt, influxdb, node-red, grafana | Gen AI: n8n, ollama, letta, kokoro" \
+            --header="  MING: mqtt, influxdb, node-red, grafana" \
             --cursor.foreground="6" \
             --selected.foreground="2" \
             --selected="${preselected[*]}" \
             "${options[@]}" 2>/dev/null || true)
     else
         selected=$(gum choose --no-limit \
-            --header="  Edge AI: mqtt, influxdb, node-red, grafana | Gen AI: n8n, ollama, letta, kokoro" \
+            --header="  MING: mqtt, influxdb, node-red, grafana" \
             --cursor.foreground="6" \
             --selected.foreground="2" \
             "${options[@]}" 2>/dev/null || true)
@@ -218,7 +180,6 @@ select_with_gum() {
         exit 0
     fi
 
-    # Extract service names from selection (strip dependency info)
     local -a selected_services=()
     while IFS= read -r line; do
         local svc
@@ -237,23 +198,19 @@ select_without_gum() {
     print_status
 
     echo -e "${BOLD}  Available actions:${NC}"
-    echo -e "  ${GREEN}1${NC}) Start Edge AI layer     (mqtt, influxdb, node-red, grafana)"
-    echo -e "  ${GREEN}2${NC}) Start Gen AI layer       (n8n, ollama, letta, kokoro)"
-    echo -e "  ${GREEN}3${NC}) Start ALL services"
-    echo -e "  ${GREEN}4${NC}) Stop ALL services"
-    echo -e "  ${GREEN}5${NC}) Custom selection"
-    echo -e "  ${GREEN}6${NC}) Exit"
+    echo -e "  ${GREEN}1${NC}) Start ALL services     (mqtt, influxdb, node-red, grafana)"
+    echo -e "  ${GREEN}2${NC}) Stop ALL services"
+    echo -e "  ${GREEN}3${NC}) Custom selection"
+    echo -e "  ${GREEN}4${NC}) Exit"
     echo ""
 
-    read -rp "  Select option [1-6]: " choice
+    read -rp "  Select option [1-4]: " choice
 
     case "$choice" in
-        1) apply_selection "${EDGE_SERVICES[@]}" ;;
-        2) apply_selection "${GENAI_SERVICES[@]}" ;;
-        3) apply_selection "${ALL_SERVICES[@]}" ;;
-        4) stop_all ;;
-        5) custom_selection ;;
-        6) exit 0 ;;
+        1) apply_selection "${ALL_SERVICES[@]}" ;;
+        2) stop_all ;;
+        3) custom_selection ;;
+        4) exit 0 ;;
         *) echo -e "${RED}  Invalid option${NC}"; exit 1 ;;
     esac
 }
@@ -292,11 +249,9 @@ custom_selection() {
 apply_selection() {
     local -a selected=("$@")
 
-    # Resolve dependencies
     local -a resolved
     IFS=' ' read -ra resolved <<< "$(resolve_deps "${selected[@]}")"
 
-    # Check if we added any deps automatically
     local -a auto_added=()
     for dep in "${resolved[@]}"; do
         if [[ ! " ${selected[*]} " =~ " $dep " ]]; then
@@ -308,7 +263,6 @@ apply_selection() {
         echo -e "${YELLOW}  Auto-adding dependencies: ${BOLD}${auto_added[*]}${NC}"
     fi
 
-    # Determine what to stop (running but not selected)
     local -a to_stop=()
     for service in "${ALL_SERVICES[@]}"; do
         local status
@@ -318,7 +272,6 @@ apply_selection() {
         fi
     done
 
-    # Warn about stopping services with dependents
     if [ ${#to_stop[@]} -gt 0 ]; then
         echo ""
         echo -e "${YELLOW}  Services to stop: ${BOLD}${to_stop[*]}${NC}"
@@ -345,7 +298,6 @@ apply_selection() {
         fi
     fi
 
-    # Determine what to start (selected but not running)
     local -a to_start=()
     for service in "${resolved[@]}"; do
         local status
@@ -379,13 +331,11 @@ stop_all() {
 
 # Main
 main() {
-    # Check we're in the right directory
     if [ ! -f "docker-compose.yml" ]; then
         echo -e "${RED}  Error: docker-compose.yml not found. Run from project root.${NC}"
         exit 1
     fi
 
-    # Check Docker is available
     if ! command -v docker &>/dev/null; then
         echo -e "${RED}  Error: docker not found. Please install Docker.${NC}"
         exit 1
