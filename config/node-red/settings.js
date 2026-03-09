@@ -33,8 +33,8 @@ module.exports = {
         },
         menu: {
             "menu-item-help": {
-                label: "MING Stack Documentation",
-                url: "https://github.com/raisga/p4n4-docker"
+                label: "p4n4-iot Documentation",
+                url: "https://github.com/raisga/p4n4-iot"
             }
         }
     },

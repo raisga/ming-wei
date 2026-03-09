@@ -4,7 +4,7 @@
         "type": "tab",
         "label": "MING IoT Pipeline",
         "disabled": false,
-        "info": "Routes MQTT data to InfluxDB.\n- Production: sensors/* and inference/* → 'iot' bucket\n- Sandbox: sandbox/* → 'sandbox' bucket\n\nUses InfluxDB Line Protocol via HTTP API (no contrib nodes needed).\nRequires INFLUXDB_TOKEN env var in Node-RED container."
+        "info": "Routes MQTT data to InfluxDB.\n- Production: sensors/* and inference/* → 'raw_telemetry' bucket (30d)\n- Sandbox: sandbox/* → 'sandbox' bucket\n\nUses InfluxDB Line Protocol via HTTP API (no contrib nodes needed).\nRequires INFLUXDB_TOKEN env var in Node-RED container."
     },
     {
         "id": "mqtt-broker",
@@ -36,8 +36,8 @@
         "id": "comment-production",
         "type": "comment",
         "z": "tab-pipeline",
-        "name": "Production Pipeline → iot bucket",
-        "info": "Routes sensors/* and inference/* topics to the 'iot' InfluxDB bucket.\nData is formatted as InfluxDB Line Protocol and sent via HTTP API.",
+        "name": "Production Pipeline → raw_telemetry bucket",
+        "info": "Routes sensors/* and inference/* topics to the 'raw_telemetry' InfluxDB bucket (30d retention).\nData is formatted as InfluxDB Line Protocol and sent via HTTP API.",
         "x": 200,
         "y": 40,
         "wires": []
@@ -116,11 +116,11 @@
         "id": "http-write-iot",
         "type": "http request",
         "z": "tab-pipeline",
-        "name": "Write to iot bucket",
+        "name": "Write to raw_telemetry bucket",
         "method": "POST",
         "ret": "txt",
         "paytoqs": "ignore",
-        "url": "http://influxdb:8086/api/v2/write?org=ming&bucket=iot&precision=ms",
+        "url": "http://influxdb:8086/api/v2/write?org=ming&bucket=raw_telemetry&precision=ms",
         "tls": "",
         "persist": false,
         "proxy": "",

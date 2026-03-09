@@ -7,8 +7,16 @@
 .env.local
 .env.*.local
 
+# Local compose overrides
+docker-compose.override.yml
+
 # Docker volumes (if mounted locally)
 data/
+
+# Mosquitto auth files (generated, contain hashed passwords)
+config/mosquitto/passwd
+config/mosquitto/acl
+config/mosquitto/certs/
 
 # Node-RED
 config/node-red/flows_cred.json

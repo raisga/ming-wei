@@ -1,0 +1,52 @@
+# ==============================================================================
+# docker-compose.override.yml — Local Overrides Example
+# ==============================================================================
+# Copy to docker-compose.override.yml and uncomment the sections you need.
+# Docker Compose automatically merges this file with docker-compose.yml.
+# DO NOT commit docker-compose.override.yml (it's in .gitignore).
+#
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+# ==============================================================================
+
+services:
+
+  # ----------------------------------------------------------------------------
+  # Node-RED: expose debug port or mount custom node modules
+  # ----------------------------------------------------------------------------
+  # node-red:
+  #   ports:
+  #     - "1880:1880"
+  #     - "9229:9229"   # Node.js inspector for debugging
+  #   volumes:
+  #     - ./config/node-red/custom-nodes:/data/node_modules/custom:ro
+
+  # ----------------------------------------------------------------------------
+  # InfluxDB: custom retention or data directory mount
+  # ----------------------------------------------------------------------------
+  # influxdb:
+  #   volumes:
+  #     - /mnt/data/influxdb:/var/lib/influxdb2   # external storage
+
+  # ----------------------------------------------------------------------------
+  # Grafana: development mode with anonymous access
+  # ----------------------------------------------------------------------------
+  # grafana:
+  #   environment:
+  #     GF_AUTH_ANONYMOUS_ENABLED: "true"
+  #     GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+
+  # ----------------------------------------------------------------------------
+  # MQTT: enable TLS (requires cert files in config/mosquitto/certs/)
+  # ----------------------------------------------------------------------------
+  # mqtt:
+  #   ports:
+  #     - "1883:1883"
+  #     - "8883:8883"   # MQTT/TLS
+  #     - "9001:9001"
+  #   volumes:
+  #     - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+  #     - ./config/mosquitto/passwd:/mosquitto/config/passwd:ro
+  #     - ./config/mosquitto/acl:/mosquitto/config/acl:ro
+  #     - ./config/mosquitto/certs:/mosquitto/certs:ro
+  #     - mosquitto-data:/mosquitto/data
+  #     - mosquitto-log:/mosquitto/log

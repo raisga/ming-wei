@@ -12,8 +12,8 @@ services:
     container_name: p4n4-mqtt
     restart: unless-stopped
     ports:
-      - "1883:1883"
-      - "9001:9001"
+      - "1883:1883"   # MQTT TCP
+      - "9001:9001"   # MQTT WebSocket
     volumes:
       - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
@@ -41,13 +41,18 @@ services:
       DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME:-admin}
       DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-adminpassword}
       DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-ming}
-      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-iot}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-raw_telemetry}
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-p4n4-stack-token}
+      # Additional bucket names (created by init-buckets.sh)
+      INFLUXDB_BUCKET_PROCESSED: ${INFLUXDB_BUCKET_PROCESSED:-processed_metrics}
+      INFLUXDB_BUCKET_AI_EVENTS: ${INFLUXDB_BUCKET_AI_EVENTS:-ai_events}
+      INFLUXDB_BUCKET_HEALTH: ${INFLUXDB_BUCKET_HEALTH:-system_health}
       INFLUXDB_SANDBOX_BUCKET: ${INFLUXDB_SANDBOX_BUCKET:-sandbox}
+      INFLUXDB_SANDBOX_RETENTION: ${INFLUXDB_SANDBOX_RETENTION:-30d}
     volumes:
       - influxdb-data:/var/lib/influxdb2
       - influxdb-config:/etc/influxdb2
-      - ./scripts/init-sandbox.sh:/docker-entrypoint-initdb.d/init-sandbox.sh:ro
+      - ./scripts/init-buckets.sh:/docker-entrypoint-initdb.d/init-buckets.sh:ro
     healthcheck:
       test: ["CMD", "influx", "ping"]
       interval: 30s
@@ -70,6 +75,7 @@ services:
       TZ: ${TZ:-UTC}
       INFLUXDB_TOKEN: ${INFLUXDB_TOKEN:-p4n4-stack-token}
       INFLUXDB_ORG: ${INFLUXDB_ORG:-ming}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET:-raw_telemetry}
     volumes:
       - node-red-data:/data
       - ./config/node-red/settings.js:/data/settings.js:ro
@@ -92,7 +98,7 @@ services:
   # Data Visualization (Grafana)
   # ------------------------------------------------------------------------------------
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana-oss:latest
     container_name: p4n4-grafana
     restart: unless-stopped
     ports:
@@ -100,7 +106,10 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-adminpassword}
-      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+      GF_INSTALL_PLUGINS: grafana-clock-panel,marcusolsson-json-datasource
+      # Passed to provisioning templates via env var expansion
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN:-p4n4-stack-token}
+      INFLUXDB_ORG: ${INFLUXDB_ORG:-ming}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -123,6 +132,9 @@ networks:
   p4n4-net:
     name: p4n4-net
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 
 # ====================================================================================
 # VOLUMES

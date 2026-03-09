@@ -4,6 +4,8 @@
 
 The MING stack (MQTT · InfluxDB · Node-RED · Grafana) packages a complete IoT data pipeline into a single `docker compose` setup. Devices publish sensor readings over MQTT, Node-RED routes and transforms data into InfluxDB, and Grafana visualizes everything in real time.
 
+Part of the [p4n4](https://github.com/raisga/p4n4) platform — an EdgeAI + GenAI integration platform for IoT deployments.
+
 ---
 
 ## Table of Contents
@@ -13,9 +15,13 @@ The MING stack (MQTT · InfluxDB · Node-RED · Grafana) packages a complete IoT
 - [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
 - [Project Structure](#project-structure)
+- [InfluxDB Buckets](#influxdb-buckets)
+- [MQTT Topic Convention](#mqtt-topic-convention)
 - [Usage](#usage)
 - [Default Ports](#default-ports)
 - [Default Credentials](#default-credentials)
+- [Security Hardening](#security-hardening)
+- [Local Overrides](#local-overrides)
 - [Resources](#resources)
 - [License](#license)
 
@@ -33,13 +39,15 @@ The MING stack (MQTT · InfluxDB · Node-RED · Grafana) packages a complete IoT
        [Node-RED]       ← workflow engine (route, transform, persist)
            │
            ▼
-       [InfluxDB]       ← time-series database
+       [InfluxDB]       ← time-series database (multiple buckets)
            │
            ▼
         [Grafana]       ← dashboards & alerts
 ```
 
 **Data flow:** IoT devices publish sensor readings to MQTT topics. Node-RED subscribes to those topics, applies any business logic or transformations, and writes the data to InfluxDB using the HTTP API. Grafana reads from InfluxDB to render real-time dashboards and fire alerts.
+
+This stack is designed to run standalone or alongside [`p4n4-ai`](https://github.com/raisga/p4n4-ai) on a shared `p4n4-net` Docker bridge network, enabling Node-RED to call Ollama, Letta, and n8n for AI-augmented IoT workflows.
 
 ---
 
@@ -104,28 +112,73 @@ The MING stack (MQTT · InfluxDB · Node-RED · Grafana) packages a complete IoT
 
 ```
 p4n4-iot/
-├── docker-compose.yml          # MING stack service definitions
-├── Makefile                    # Convenience commands (make up, make down, etc.)
-├── .env.example                # Environment template (copy to .env)
+├── docker-compose.yml                  # MING stack service definitions
+├── docker-compose.override.yml.example # Local override template (GPU, ports, dev)
+├── Makefile                            # Convenience commands (make up, make down, etc.)
+├── .env.example                        # Environment template (copy to .env)
 ├── .gitignore
 ├── config/
 │   ├── mosquitto/
-│   │   └── mosquitto.conf      # MQTT broker configuration
+│   │   ├── mosquitto.conf              # MQTT broker configuration
+│   │   ├── passwd.example             # Auth password file template
+│   │   └── acl.example                # Topic ACL template
 │   ├── node-red/
-│   │   ├── settings.js         # Node-RED runtime settings
-│   │   └── flows.json          # Sample MQTT-to-InfluxDB flow
+│   │   ├── settings.js                # Node-RED runtime settings
+│   │   └── flows.json                 # MQTT-to-InfluxDB pipeline flows
 │   └── grafana/
 │       └── provisioning/
 │           ├── datasources/
-│           │   └── datasources.yml        # Auto-configure InfluxDB datasource
+│           │   └── datasources.yml    # Auto-configure all InfluxDB datasources
 │           └── dashboards/
-│               ├── dashboards.yml         # Dashboard provisioning config
+│               ├── dashboards.yml     # Dashboard provisioning config
 │               └── json/
 │                   └── iot-overview.json  # Sample IoT dashboard
 ├── scripts/
-│   ├── init-sandbox.sh         # InfluxDB sandbox bucket initialization
-│   └── selector.sh             # Interactive service selector
+│   ├── init-buckets.sh                # InfluxDB bucket initialization
+│   └── selector.sh                    # Interactive service selector
 └── README.md
+```
+
+---
+
+## InfluxDB Buckets
+
+The stack provisions five buckets automatically on first run:
+
+| Bucket | Retention | Purpose |
+|--------|-----------|---------|
+| `raw_telemetry` | 30 days | All inbound sensor readings (primary bucket) |
+| `processed_metrics` | 365 days | Downsampled / aggregated data |
+| `ai_events` | Infinite | AI annotations, anomaly flags, agent logs |
+| `system_health` | 7 days | Node-RED and stack component health metrics |
+| `sandbox` | 30 days | Development and testing |
+
+`raw_telemetry` is the default write target for all production MQTT flows. Corresponding Grafana datasources are provisioned for each bucket.
+
+---
+
+## MQTT Topic Convention
+
+The recommended topic structure is:
+
+```
+{site}/{device_type}/{device_id}/{measurement}
+```
+
+Examples:
+
+```
+factory/temp_sensor/T001/celsius
+factory/humidity_sensor/H001/percent
+lab/pressure_sensor/P007/bar
+```
+
+The bundled Node-RED flows also support flat topic namespaces for quick testing:
+
+```
+sensors/temperature    →  raw_telemetry bucket
+inference/results      →  raw_telemetry bucket
+sandbox/sensors/#      →  sandbox bucket
 ```
 
 ---
@@ -166,11 +219,16 @@ make clean          # Stop services and remove all data volumes
 
 ### Publishing Custom Sensor Data
 
-Use any MQTT client to publish JSON payloads to `sensors/<topic>`:
+Use any MQTT client to publish JSON payloads:
 
 ```bash
+# Flat namespace (quick testing)
 mosquitto_pub -h localhost -t 'sensors/temperature' \
   -m '{"value": 23.5, "unit": "C", "device": "my-sensor"}'
+
+# Structured namespace (recommended for production)
+mosquitto_pub -h localhost -t 'factory/temp_sensor/T001/celsius' \
+  -m '{"value": 23.5, "unit": "C", "device": "T001"}'
 ```
 
 Node-RED routes the message to InfluxDB, where it becomes immediately queryable in Grafana.
@@ -197,13 +255,51 @@ All credentials can be customized in `.env`. Defaults (from `.env.example`):
 | InfluxDB | `admin`  | `adminpassword` |
 | Grafana  | `admin`  | `adminpassword` |
 
-**Note:** Change these before deploying to production!
+**Note:** Change all passwords and the InfluxDB token before deploying to production.
+
+---
+
+## Security Hardening
+
+By default, Mosquitto runs with `allow_anonymous true` for ease of local development. For production:
+
+1. Generate a password file:
+   ```bash
+   docker run --rm -it eclipse-mosquitto:2 mosquitto_passwd -c /dev/stdout node-red
+   # Copy output to config/mosquitto/passwd
+   ```
+
+2. Use `config/mosquitto/passwd.example` and `config/mosquitto/acl.example` as starting templates.
+
+3. Enable authentication in `config/mosquitto/mosquitto.conf`:
+   ```
+   allow_anonymous false
+   password_file /mosquitto/config/passwd
+   acl_file /mosquitto/config/acl
+   ```
+
+4. Mount the files via `docker-compose.override.yml` (see [Local Overrides](#local-overrides)).
+
+---
+
+## Local Overrides
+
+Use `docker-compose.override.yml` for machine-specific settings (TLS, GPU, external volumes) without modifying the base `docker-compose.yml`:
+
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml
+# Edit docker-compose.override.yml as needed
+docker compose up -d
+```
+
+The override file is listed in `.gitignore` and will never be committed.
 
 ---
 
 ## Resources
 
-- [MING Stack Tutorial](https://github.com/ArthurKretzer/tutorial-p4n4-stack) — IIoT data stack tutorial presented at XIV SBESC (2024)
+- [p4n4 Platform](https://github.com/raisga/p4n4) — umbrella repo and architecture docs
+- [p4n4-ai](https://github.com/raisga/p4n4-ai) — GenAI stack (Ollama · Letta · n8n)
 - [Eclipse Mosquitto](https://mosquitto.org/) — MQTT broker documentation
 - [InfluxDB Documentation](https://docs.influxdata.com/) — Time-series database docs
 - [Node-RED Documentation](https://nodered.org/docs/) — Flow-based programming docs

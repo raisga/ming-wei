@@ -3,7 +3,7 @@
 # ==============================================================================
 
 .PHONY: help up down restart logs ps clean pull status interactive start stop \
-        test-mqtt test-sandbox
+        test-mqtt test-sandbox buckets
 
 # Colors
 GREEN  := \033[0;32m
@@ -37,6 +37,9 @@ help:
 	@printf "    $(GREEN)make interactive$(NC)     Interactive service selector\n"
 	@printf "    $(GREEN)make start SERVICE=x$(NC) Start a service + its deps\n"
 	@printf "    $(GREEN)make stop SERVICE=x$(NC)  Stop a service (warns about deps)\n"
+	@echo ""
+	@printf "  $(BOLD)InfluxDB:$(NC)\n"
+	@printf "    $(GREEN)make buckets$(NC)         List all InfluxDB buckets\n"
 	@echo ""
 	@printf "  $(BOLD)Testing:$(NC)\n"
 	@printf "    $(GREEN)make test-mqtt$(NC)       Publish test data to MQTT\n"
@@ -169,6 +172,17 @@ endif
 	@printf "$(YELLOW)  Stopping $(BOLD)$(SERVICE)$(NC)$(YELLOW)...$(NC)\n"
 	@docker compose stop $(SERVICE)
 	@printf "$(GREEN)$(BOLD)  Done!$(NC)\n"
+
+# ------------------------------------------------------------------------------
+# InfluxDB Bucket Inspection
+# ------------------------------------------------------------------------------
+
+buckets:
+	@printf "$(BOLD)$(CYAN)  InfluxDB Buckets$(NC)\n"
+	@docker exec p4n4-influxdb influx bucket list \
+		--token "$$(docker exec p4n4-influxdb sh -c 'echo $$DOCKER_INFLUXDB_INIT_ADMIN_TOKEN')" \
+		--org "$$(docker exec p4n4-influxdb sh -c 'echo $$DOCKER_INFLUXDB_INIT_ORG')" 2>/dev/null \
+		|| printf "$(RED)  InfluxDB is not running. Start with: make up$(NC)\n"
 
 # ------------------------------------------------------------------------------
 # Testing Commands
